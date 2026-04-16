@@ -1,0 +1,14 @@
+{
+  "name": "duplicate_turn_retry_case",
+  "goal": "Verify Step 8 retry idempotency does not append the same turn twice.",
+  "inputs": {
+    "session_id": "20260415_093002_G7H8J9",
+    "turn_id": "turn_0012",
+    "retry_count": 2
+  },
+  "expected": {
+    "history_appended_once": true,
+    "last_turn_id_equals": "turn_0012",
+    "write_attempt_count_incremented": true
+  }
+}

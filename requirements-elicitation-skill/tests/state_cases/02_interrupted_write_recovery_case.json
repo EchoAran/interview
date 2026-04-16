@@ -1,0 +1,13 @@
+{
+  "name": "interrupted_write_recovery_case",
+  "goal": "Verify rollback recovery from checkpoint after an interrupted transactional write.",
+  "inputs": {
+    "session_id": "20260415_093001_D4E5F6",
+    "simulate": "framework.json.tmp exists but metadata.json.tmp missing"
+  },
+  "expected": {
+    "live_state_unchanged": true,
+    "rollback_from_checkpoint": true,
+    "validate_state_exit_code": 0
+  }
+}

@@ -1,0 +1,196 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "InterviewFramework",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "phase",
+    "current_topic_id",
+    "topics",
+    "open_questions",
+    "session"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "2.0.0"
+    },
+    "phase": {
+      "type": "string",
+      "enum": ["start", "runtime", "complete"]
+    },
+    "current_topic_id": {
+      "type": ["string", "null"]
+    },
+    "topics": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "label", "priority", "status", "slots"],
+        "properties": {
+          "id": { "type": "string" },
+          "label": { "type": "string" },
+          "priority": {
+            "type": "string",
+            "enum": ["high", "medium", "low"]
+          },
+          "coverage_score": {
+            "type": ["number", "null"],
+            "minimum": 0,
+            "maximum": 1
+          },
+          "status": {
+            "type": "string",
+            "enum": ["unstarted", "active", "partially_filled", "sufficient", "blocked", "skipped"]
+          },
+          "notes": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "blocking_issues": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "slots": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["name", "value", "confidence", "status", "evidence"],
+              "properties": {
+                "name": { "type": "string" },
+                "value": {},
+                "confidence": {
+                  "type": "string",
+                  "enum": ["confirmed", "supported_inference", "open"],
+                  "description": "Semantic constraints are runtime-validated: empty->open; filled must not use open; conflicted should not use open."
+                },
+                "status": {
+                  "type": "string",
+                  "enum": ["empty", "filled", "open_question", "conflicted"],
+                  "description": "Pair with confidence using SKILL.md state semantics mapping."
+                },
+                "contradiction_severity": {
+                  "type": ["string", "null"],
+                  "enum": ["low", "medium", "high", null],
+                  "description": "Required when status=conflicted."
+                },
+                "evidence": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "required": ["turn_id", "excerpt", "timestamp", "confidence_note"],
+                    "properties": {
+                      "turn_id": { "type": "string" },
+                      "excerpt": { "type": "string" },
+                      "timestamp": { "type": "string" },
+                      "confidence_note": { "type": "string" }
+                    },
+                    "additionalProperties": false
+                  }
+                },
+                "last_updated": {
+                  "type": ["string", "null"]
+                },
+                "convergence_score": {
+                  "type": ["number", "null"],
+                  "minimum": 0,
+                  "maximum": 1
+                },
+                "information_density": {
+                  "type": ["string", "null"],
+                  "enum": ["low", "medium", "high", null]
+                }
+              },
+              "additionalProperties": false
+            }
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "open_questions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "text", "kind", "status"],
+        "properties": {
+          "id": { "type": "string" },
+          "text": { "type": "string" },
+          "kind": {
+            "type": "string",
+            "enum": ["general", "contradiction", "assumption", "dependency"]
+          },
+          "related_slot_ref": { "type": ["string", "null"] },
+          "severity": {
+            "type": ["string", "null"],
+            "enum": ["low", "medium", "high", null]
+          },
+          "status": {
+            "type": "string",
+            "enum": ["open", "resolved"]
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "contradictions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "slot_ref", "claim_a", "claim_b", "severity", "status"],
+        "properties": {
+          "id": { "type": "string" },
+          "slot_ref": { "type": "string" },
+          "claim_a": { "type": "string" },
+          "claim_b": { "type": "string" },
+          "severity": {
+            "type": "string",
+            "enum": ["low", "medium", "high"]
+          },
+          "status": {
+            "type": "string",
+            "enum": ["open", "resolved"]
+          },
+          "resolution_note": { "type": ["string", "null"] },
+          "resolved_at": { "type": ["string", "null"] }
+        },
+        "additionalProperties": false
+      }
+    },
+    "session": {
+      "type": "object",
+      "required": ["session_id", "conversation_id", "state_version", "schema_version", "status"],
+      "properties": {
+        "session_id": { "type": "string" },
+        "conversation_id": { "type": "string" },
+        "state_version": { "type": "string" },
+        "schema_version": { "type": "string", "const": "2.0.0" },
+        "status": { "type": "string", "enum": ["active", "closed"] },
+        "closed_at": { "type": ["string", "null"] },
+        "cleanup_pending": { "type": "boolean" },
+        "cleanup_pending_reason": { "type": ["string", "null"] }
+      },
+      "additionalProperties": false
+    },
+    "efficiency_metrics": {
+      "type": "object",
+      "properties": {
+        "total_turns": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "avg_slots_filled_per_turn": {
+          "type": ["number", "null"],
+          "minimum": 0
+        },
+        "estimated_completion": {
+          "type": ["number", "null"],
+          "minimum": 0,
+          "maximum": 1
+        }
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": false
+}

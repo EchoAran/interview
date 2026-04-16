@@ -1,0 +1,14 @@
+{
+  "name": "old_schema_migration_case",
+  "goal": "Verify old-schema state can migrate to 2.0.0 and rollback to checkpoint on migration failure.",
+  "inputs": {
+    "session_id": "20260415_093003_K1L2M3",
+    "original_schema_version": "1.1.0",
+    "target_schema_version": "2.0.0"
+  },
+  "expected": {
+    "check_state_drift_detects_mismatch": true,
+    "migration_or_rollback_succeeds": true,
+    "metadata_schema_version_equals": "2.0.0"
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "name": "normal_persistence_case",
+  "goal": "Verify that one normal turn commit produces complete and valid state files.",
+  "inputs": {
+    "session_id": "20260415_093000_A1B2C3",
+    "turn_id": "turn_0001",
+    "schema_version": "2.0.0"
+  },
+  "expected": {
+    "commit_created": true,
+    "last_turn_id_equals": "turn_0001",
+    "validate_state_exit_code": 0
+  }
+}
