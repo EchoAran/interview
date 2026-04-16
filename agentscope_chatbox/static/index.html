@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AgentScope Skill Chatbox</title>
+    <style>
+      :root {
+        color-scheme: dark;
+      }
+      body {
+        margin: 0;
+        font-family: Inter, "Segoe UI", Arial, sans-serif;
+        background: #0f172a;
+        color: #e2e8f0;
+      }
+      .container {
+        max-width: 920px;
+        margin: 0 auto;
+        padding: 24px 16px 40px;
+      }
+      .title {
+        font-size: 22px;
+        font-weight: 700;
+        margin: 0 0 8px;
+      }
+      .subtitle {
+        margin: 0 0 16px;
+        color: #94a3b8;
+      }
+      .skills {
+        margin: 0 0 20px;
+        font-size: 14px;
+        color: #cbd5e1;
+      }
+      .chatbox {
+        border: 1px solid #334155;
+        border-radius: 14px;
+        background: #111827;
+        min-height: 420px;
+        padding: 14px;
+        overflow-y: auto;
+      }
+      .msg {
+        margin: 10px 0;
+        padding: 10px 12px;
+        border-radius: 10px;
+        white-space: pre-wrap;
+      }
+      .msg.user {
+        background: #1d4ed8;
+      }
+      .msg.agent {
+        background: #1e293b;
+      }
+      .input-row {
+        display: flex;
+        gap: 10px;
+        margin-top: 14px;
+      }
+      input,
+      button {
+        height: 42px;
+        border-radius: 8px;
+        border: 1px solid #334155;
+        background: #0b1220;
+        color: #e2e8f0;
+      }
+      #messageInput {
+        flex: 1;
+        padding: 0 12px;
+      }
+      #sendBtn {
+        min-width: 96px;
+        cursor: pointer;
+        background: #2563eb;
+        border: none;
+      }
+      #sendBtn:disabled {
+        opacity: 0.55;
+        cursor: not-allowed;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="container">
+      <h1 class="title">AgentScope Skill Chatbox</h1>
+      <p class="subtitle">系统 Agent 已启用 skills 挂载能力</p>
+      <p id="skillsText" class="skills">正在加载 skills...</p>
+
+      <section id="chatbox" class="chatbox"></section>
+
+      <div class="input-row">
+        <input id="messageInput" placeholder="输入消息，回车发送" />
+        <button id="sendBtn">发送</button>
+      </div>
+    </main>
+
+    <script>
+      const chatboxEl = document.getElementById("chatbox");
+      const inputEl = document.getElementById("messageInput");
+      const sendBtnEl = document.getElementById("sendBtn");
+      const skillsTextEl = document.getElementById("skillsText");
+      const sessionId = `web-${Math.random().toString(36).slice(2, 10)}`;
+
+      function appendMsg(role, text) {
+        const el = document.createElement("div");
+        el.className = `msg ${role}`;
+        el.textContent = text;
+        chatboxEl.appendChild(el);
+        chatboxEl.scrollTop = chatboxEl.scrollHeight;
+      }
+
+      async function loadSkills() {
+        try {
+          const res = await fetch("/api/skills");
+          const data = await res.json();
+          skillsTextEl.textContent = `已挂载 skills: ${data.skills.join(", ")}`;
+        } catch (err) {
+          skillsTextEl.textContent = "skills 加载失败";
+        }
+      }
+
+      async function sendMessage() {
+        const message = inputEl.value.trim();
+        if (!message) return;
+
+        appendMsg("user", `你: ${message}`);
+        inputEl.value = "";
+        sendBtnEl.disabled = true;
+
+        try {
+          const res = await fetch("/api/chat", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ session_id: sessionId, message }),
+          });
+          const data = await res.json();
+          if (!res.ok) {
+            appendMsg("agent", `系统错误: ${data.error || "未知错误"}`);
+          } else {
+            appendMsg("agent", `Agent: ${data.answer}`);
+          }
+        } catch (err) {
+          appendMsg("agent", "网络错误，请稍后重试。");
+        } finally {
+          sendBtnEl.disabled = false;
+          inputEl.focus();
+        }
+      }
+
+      sendBtnEl.addEventListener("click", sendMessage);
+      inputEl.addEventListener("keydown", (event) => {
+        if (event.key === "Enter") sendMessage();
+      });
+
+      appendMsg("agent", "你好，我可以基于已挂载 skills 协助你完成任务。");
+      loadSkills();
+      inputEl.focus();
+    </script>
+  </body>
+</html>

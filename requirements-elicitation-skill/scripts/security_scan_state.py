@@ -5,6 +5,8 @@ import sys
 from pathlib import Path
 from typing import List, Tuple
 
+from state_lib.config import resolve_state_root, skill_dir_from_file
+
 
 PATTERNS = [
     re.compile(r"(?i)\bapi[_-]?key\b\s*[:=]\s*['\"]?[A-Za-z0-9_\-]{16,}"),
@@ -29,10 +31,11 @@ def scan_file(path: Path) -> List[Tuple[int, str]]:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Scan state files for sensitive content")
-    parser.add_argument("--state-root", default="state")
+    parser.add_argument("--state-root", default=None)
     args = parser.parse_args()
 
-    root = Path(args.state_root)
+    skill_dir = skill_dir_from_file(__file__)
+    root = resolve_state_root(args.state_root, skill_dir=skill_dir)
     if not root.exists():
         print(f"[OK] state root not found: {root}")
         return 0

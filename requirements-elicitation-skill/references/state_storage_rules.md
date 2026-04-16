@@ -63,14 +63,20 @@ This document defines file contracts, hard limits, and transaction boundaries.
 
 ## Directory Rules
 
+- `state_root` default: `<skill_dir>/state`.
+- Override sources (priority high to low):
+  - runtime `--state-root`
+  - `skill.config.json` -> `state_root`
+  - `config/state.json` -> `state_root`
+- Resolved path must remain within allowlisted roots.
 - Base directories:
-  - `state/sessions/`
-  - `state/temp/`
-  - `state/archive/`
-- Transaction temp path: `state/temp/{session_id}/`.
-- Checkpoint path: `state/sessions/{session_id}/checkpoints/v{n}/`.
-- Revision path: `state/sessions/{session_id}/revisions/r{n}/`.
-- Active read pointer: `state/sessions/{session_id}/CURRENT`.
+  - `<state_root>/sessions/`
+  - `<state_root>/temp/`
+  - `<state_root>/archive/`
+- Transaction temp path: `<state_root>/temp/{session_id}/`.
+- Checkpoint path: `<state_root>/sessions/{session_id}/checkpoints/v{n}/`.
+- Revision path: `<state_root>/sessions/{session_id}/revisions/r{n}/`.
+- Active read pointer: `<state_root>/sessions/{session_id}/CURRENT`.
 
 ## Session ID and Path Safety
 

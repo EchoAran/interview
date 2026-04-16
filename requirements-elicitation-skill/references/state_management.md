@@ -2,10 +2,14 @@
 
 This document defines the transaction-safe persistence model for stateful interview execution.
 
+Execution profiles:
+- Profile S (Scripted Persistence): recommended; use bundled scripts/library as deterministic state engine.
+- Profile T (Tool-only Persistence): compatibility fallback; host manually orchestrates file transaction steps.
+
 ## Storage Layout
 
 ```text
-state/
+<state_root>/
 ├── conversation_index.json                 # {conversation_id: session_id}
 ├── sessions/
 │   ├── {session_id}/
@@ -30,6 +34,10 @@ state/
 │   └── {session_id}/                       # transactional temp write area
 └── archive/                                # closed sessions kept for delayed cleanup
 ```
+
+Default `state_root` is `<skill_dir>/state`.
+Override may come from `skill.config.json`, `config/state.json`, or runtime `--state-root`.
+Resolved path must pass allowlist validation.
 
 ## Session Identity Rules
 
@@ -70,6 +78,13 @@ Every state-changing turn must commit with all-or-nothing semantics:
 - If `turn_id` is same but `content_hash` differs, treat as corrective retry and allow commit.
 - Track retry pressure in `metadata.write_attempt_count`.
 
+## Concurrency and Re-entry Rules
+
+- Same `session_id` must be write-serialized.
+- Use host queueing or adapter lock before commit-critical operations.
+- Prefer host-generated stable `turn_id` for retries and reconnects.
+- On reconnect/re-entry, load from `CURRENT` before computing any write delta.
+
 ## Snapshot and Recovery
 
 - Keep checkpoints for the latest 3 to 5 committed versions.
@@ -101,7 +116,11 @@ To keep interview logic portable across runtimes, implement persistence behind a
 - `load_current(session_id) -> framework, history, metadata, commit, revision_id`
 - `commit_revision(session_id, framework, history, metadata, commit) -> revision_id`
 - `mark_closed(session_id, closed_at)`
+- `mark_cleanup_pending(session_id, reason, timestamp?)`
 - `archive_session(session_id)`
+- `resolve_session_dir(session_id?, conversation_id?) -> session_dir`
+- `upsert_conversation_mapping(conversation_id, session_id)`
+- `remove_conversation_mapping(conversation_id, session_id?)`
 
 Current repository default is file-based implementation (`scripts/storage_adapter.py`, `FileStorageAdapter`).
 Future adapters (SQLite, KV, object storage) should implement the same contract without changing interview core logic.
@@ -114,3 +133,5 @@ Future adapters (SQLite, KV, object storage) should implement the same contract 
 - `scripts/security_scan_state.py`
 - `scripts/cleanup_sessions.py`
 - `scripts/storage_adapter.py`
+- `scripts/state_doctor.py`
+- `scripts/state_lib/`

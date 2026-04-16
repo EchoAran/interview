@@ -4,10 +4,13 @@ from __future__ import annotations
 import json
 import shutil
 import hashlib
+import os
+import time
 from dataclasses import dataclass
+from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Protocol, Tuple
+from typing import Any, Dict, Iterator, List, Optional, Protocol, Tuple
 
 
 JsonObject = Dict[str, Any]
@@ -61,6 +64,9 @@ class StorageAdapter(Protocol):
     ) -> None:
         ...
 
+    def mark_cleanup_pending(self, session_id: str, reason: str, timestamp: Optional[str] = None) -> None:
+        ...
+
 
 class FileStorageAdapter:
     """Filesystem implementation of StorageAdapter.
@@ -103,6 +109,30 @@ class FileStorageAdapter:
 
     def _session_dir(self, session_id: str) -> Path:
         return self.state_root / "sessions" / session_id
+
+    def _lock_path(self, session_id: str) -> Path:
+        return self.state_root / "locks" / f"{session_id}.lock"
+
+    @contextmanager
+    def _session_lock(self, session_id: str, timeout_seconds: float = 5.0) -> Iterator[None]:
+        lock_path = self._lock_path(session_id)
+        lock_path.parent.mkdir(parents=True, exist_ok=True)
+        start = time.time()
+        fd: Optional[int] = None
+        while True:
+            try:
+                fd = os.open(str(lock_path), os.O_CREAT | os.O_EXCL | os.O_RDWR)
+                break
+            except FileExistsError:
+                if time.time() - start > timeout_seconds:
+                    raise TimeoutError(f"timeout acquiring session lock: {session_id}")
+                time.sleep(0.05)
+        try:
+            yield
+        finally:
+            if fd is not None:
+                os.close(fd)
+            lock_path.unlink(missing_ok=True)
 
     def _index_path(self) -> Path:
         return self.state_root / "conversation_index.json"
@@ -199,28 +229,36 @@ class FileStorageAdapter:
         metadata: JsonObject,
         commit: JsonObject,
     ) -> str:
-        session_dir = self._session_dir(session_id)
-        revisions_root = session_dir / "revisions"
-        revisions_root.mkdir(parents=True, exist_ok=True)
-        nums = [
-            int(p.name[1:])
-            for p in revisions_root.glob("r*")
-            if p.is_dir() and p.name[1:].isdigit()
-        ]
-        next_n = (max(nums) if nums else 0) + 1
-        revision_id = f"r{next_n:06d}"
-        temp_revision = revisions_root / f".{revision_id}.tmp"
-        final_revision = revisions_root / revision_id
-        if temp_revision.exists():
-            shutil.rmtree(temp_revision, ignore_errors=True)
-        temp_revision.mkdir(parents=True, exist_ok=True)
-        self._write_json(temp_revision / "framework.json", framework)
-        self._write_json(temp_revision / "history.json", history)
-        self._write_json(temp_revision / "metadata.json", metadata)
-        self._write_json(temp_revision / "commit.json", commit)
-        temp_revision.replace(final_revision)
-        self._write_text_atomic(session_dir / "CURRENT", revision_id + "\n")
-        return revision_id
+        with self._session_lock(session_id):
+            session_dir = self._session_dir(session_id)
+            revisions_root = session_dir / "revisions"
+            revisions_root.mkdir(parents=True, exist_ok=True)
+            nums = [
+                int(p.name[1:])
+                for p in revisions_root.glob("r*")
+                if p.is_dir() and p.name[1:].isdigit()
+            ]
+            next_n = (max(nums) if nums else 0) + 1
+            revision_id = f"r{next_n:06d}"
+            commit_with_revision = dict(commit)
+            commit_with_revision["revision_id"] = revision_id
+            metadata_with_revision = dict(metadata)
+            if isinstance(metadata_with_revision.get("last_successful_commit"), dict):
+                lsc = dict(metadata_with_revision["last_successful_commit"])
+                lsc["revision_id"] = revision_id
+                metadata_with_revision["last_successful_commit"] = lsc
+            temp_revision = revisions_root / f".{revision_id}.tmp"
+            final_revision = revisions_root / revision_id
+            if temp_revision.exists():
+                shutil.rmtree(temp_revision, ignore_errors=True)
+            temp_revision.mkdir(parents=True, exist_ok=True)
+            self._write_json(temp_revision / "framework.json", framework)
+            self._write_json(temp_revision / "history.json", history)
+            self._write_json(temp_revision / "metadata.json", metadata_with_revision)
+            self._write_json(temp_revision / "commit.json", commit_with_revision)
+            temp_revision.replace(final_revision)
+            self._write_text_atomic(session_dir / "CURRENT", revision_id + "\n")
+            return revision_id
 
     def mark_closed(self, session_id: str, closed_at: str) -> None:
         snapshot = self.load_current(session_id)
@@ -244,9 +282,8 @@ class FileStorageAdapter:
         revision_id = self.commit_revision(
             session_id, snapshot.framework, snapshot.history, snapshot.metadata, commit
         )
-        snapshot.metadata["last_successful_commit"]["revision_id"] = revision_id
-        session_dir = self._session_dir(session_id)
-        self._write_json(session_dir / "revisions" / revision_id / "metadata.json", snapshot.metadata)
+        if isinstance(snapshot.metadata.get("last_successful_commit"), dict):
+            snapshot.metadata["last_successful_commit"]["revision_id"] = revision_id
 
     def mark_cleanup_pending(self, session_id: str, reason: str, timestamp: Optional[str] = None) -> None:
         at = timestamp or self._now_iso()
@@ -271,13 +308,13 @@ class FileStorageAdapter:
         revision_id = self.commit_revision(
             session_id, snapshot.framework, snapshot.history, snapshot.metadata, commit
         )
-        snapshot.metadata["last_successful_commit"]["revision_id"] = revision_id
-        session_dir = self._session_dir(session_id)
-        self._write_json(session_dir / "revisions" / revision_id / "metadata.json", snapshot.metadata)
+        if isinstance(snapshot.metadata.get("last_successful_commit"), dict):
+            snapshot.metadata["last_successful_commit"]["revision_id"] = revision_id
 
     def archive_session(self, session_id: str) -> None:
-        src = self._session_dir(session_id)
-        dst = self.state_root / "archive" / session_id
-        dst.parent.mkdir(parents=True, exist_ok=True)
-        if src.exists():
-            src.replace(dst)
+        with self._session_lock(session_id):
+            src = self._session_dir(session_id)
+            dst = self.state_root / "archive" / session_id
+            dst.parent.mkdir(parents=True, exist_ok=True)
+            if src.exists():
+                src.replace(dst)

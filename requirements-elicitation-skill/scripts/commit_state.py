@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from storage_adapter import FileStorageAdapter
+from state_lib.config import resolve_state_root, skill_dir_from_file
 from validate_state import (
     bootstrap_current_revision,
     cross_validate,
@@ -214,7 +215,7 @@ def validate_session_id(session_id: str) -> None:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Transactional state commit for one session")
-    parser.add_argument("--state-root", default="state")
+    parser.add_argument("--state-root", default=None)
     parser.add_argument("--session-id", required=True)
     parser.add_argument("--turn-id", required=True)
     parser.add_argument("--framework-file", required=True)
@@ -231,7 +232,8 @@ def main() -> int:
         print(f"[ERROR] {exc}")
         return 1
 
-    state_root = Path(args.state_root)
+    skill_dir = skill_dir_from_file(__file__)
+    state_root = resolve_state_root(args.state_root, skill_dir=skill_dir)
     storage_adapter = FileStorageAdapter(state_root)
     session_dir = state_root / "sessions" / args.session_id
     temp_dir = state_root / "temp" / args.session_id
@@ -388,8 +390,8 @@ def main() -> int:
             args.session_id, framework, history, metadata, commit
         )
         persist_commit_artifact(session_dir, commit, framework, history, metadata)
-        metadata["last_successful_commit"]["revision_id"] = revision_id
-        write_json(session_dir / "revisions" / revision_id / "metadata.json", metadata)
+        if isinstance(metadata.get("last_successful_commit"), dict):
+            metadata["last_successful_commit"]["revision_id"] = revision_id
 
         # 2) best-effort legacy mirror refresh for compatibility/debug only (non-authoritative)
         try:

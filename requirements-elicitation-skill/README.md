@@ -76,10 +76,13 @@ Start your agent and trigger a requirements interview, for example:
 ```text
 .
 ├── SKILL.md                                # Skill frontmatter + orchestration flow
+├── INTEGRATION.md                          # Host-agnostic integration guide (tiers + contracts)
 ├── README.md                               # English documentation
 ├── README-zh.md                            # Chinese documentation
 ├── install.sh                              # Unix/macOS installer for multi-tool usage
 ├── install.ps1                             # PowerShell installer for multi-tool usage
+├── config/
+│   └── state.json.example                  # Optional state_root override template
 ├── assets/
 │   ├── interview_framework_schema.json     # Runtime schema (v2)
 │   └── requirements_report_format.md       # Final report template
@@ -102,7 +105,9 @@ Start your agent and trigger a requirements interview, for example:
 │   ├── check_state_drift.py                # Drift detection + migration + rollback
 │   ├── security_scan_state.py              # Sensitive-content scan for state files
 │   ├── cleanup_sessions.py                 # Two-phase archive/delete lifecycle cleanup
+│   ├── state_doctor.py                     # Unified validate/repair/migrate entry
 │   ├── storage_adapter.py                  # Minimal storage adapter contract + file backend
+│   ├── state_lib/                          # Reusable state operations library
 │   └── run_state_tests.py                  # State-layer regression runner
 ├── examples/
 │   ├── new_framework_example.md
@@ -176,6 +181,7 @@ flowchart TD
   - `active -> closed -> archive -> delete`
 - Storage portability:
   - Core persistence can be abstracted through `StorageAdapter` contract (`load_current`, `commit_revision`, `mark_closed`, `archive_session`)
+  - Atomic integration operations: `state_load`, `state_commit`, `state_mark_closed`, `state_doctor`
 
 ## Tool Install Targets
 
@@ -196,6 +202,7 @@ python scripts/validate_state.py --state-root state --session-id <SESSION_ID>
 python scripts/check_state_drift.py --state-root state --session-id <SESSION_ID> --migrate
 python scripts/security_scan_state.py --state-root state
 python scripts/cleanup_sessions.py --state-root state --archive-days 30 --delete-days 90
+python scripts/state_doctor.py --state-root state --session-id <SESSION_ID> --action validate
 python scripts/run_state_tests.py
 ```
 
@@ -210,6 +217,7 @@ State-focused regression scenarios are in `tests/state_cases/`:
 ## Compatibility Notes
 - This repository ships canonical skill content in `SKILL.md`.
 - Cursor/Windsurf support is provided through generated adapter rules.
+- Generic host integration guidance is in `INTEGRATION.md`.
 - If your team uses custom paths, set:
   - `CURSOR_RULES_DIR`
   - `WINDSURF_RULES_DIR`

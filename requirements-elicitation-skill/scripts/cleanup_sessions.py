@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any, Dict
 
 from storage_adapter import FileStorageAdapter
+from state_lib.config import resolve_state_root, skill_dir_from_file
 from validate_state import bootstrap_current_revision
 
 
@@ -101,13 +102,14 @@ def delete_archived(
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Archive/delete stale sessions with two-phase cleanup")
-    parser.add_argument("--state-root", default="state")
+    parser.add_argument("--state-root", default=None)
     parser.add_argument("--archive-days", type=int, default=30)
     parser.add_argument("--delete-days", type=int, default=90)
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
 
-    state_root = Path(args.state_root)
+    skill_dir = skill_dir_from_file(__file__)
+    state_root = resolve_state_root(args.state_root, skill_dir=skill_dir)
     sessions_root = state_root / "sessions"
     archive_root = state_root / "archive"
     storage_adapter = FileStorageAdapter(state_root)

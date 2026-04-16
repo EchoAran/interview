@@ -1,0 +1,7 @@
+{
+  "state_root": "state",
+  "allowed_state_roots": [
+    "state",
+    "runtime_state"
+  ]
+}

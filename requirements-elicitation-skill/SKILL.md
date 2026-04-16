@@ -24,6 +24,8 @@ Use this skill when the user provides an initial product idea, software concept,
 
 This skill runs as a stateful semi structured interview loop. Do not treat it as a one shot questionnaire. Maintain and evolve an interview framework as the conversation develops.
 
+For host integration by capability tier, see `INTEGRATION.md`.
+
 ## State Management
 
 This skill uses file-based state persistence to maintain interview context across execution sessions. See `references/state_management.md` for detailed implementation rules.
@@ -35,6 +37,91 @@ This skill uses file-based state persistence to maintain interview context acros
 - **Cleanup**: Uses two-phase cleanup (`closed -> archived/deleted`) instead of immediate hard deletion
 
 When needed, load only the files relevant to the current step instead of reading every file at once.
+
+## Host Tool Contract
+
+This skill is host-agnostic. Hosts must satisfy the capability contract below for reliable execution.
+
+### Required capabilities
+
+- `read_text(path, ranges?)`
+- `write_text(path, content)` (overwrite write)
+- `atomic_write(path, content)` or equivalent `write_tmp + replace/rename`
+- `mkdir_p(path)`
+- `exists(path)`
+- `list_dir(path)` (used for session discovery and revision pointer resolution)
+- controlled execution of bundled Python scripts or functions (recommended path)
+
+### Recommended capabilities
+
+- controlled Python function execution (preferred over shell for state operations)
+- structured tool output for deterministic error handling
+- session-level lock/queue support for serialized commits
+
+### Prohibited/unsafe execution mode
+
+- unrestricted arbitrary shell execution for persistence critical paths
+- host-side path construction from raw user text
+
+If required capabilities are missing, run in degraded compatibility mode and expose risk caveats.
+
+## Execution Profiles
+
+### Profile S (Scripted Persistence, recommended)
+
+- Host executes bundled state operations as deterministic code.
+- LLM is responsible for interview reasoning and structured state payload generation.
+- Persistence transaction is delegated to scripts/library:
+  - `state_load(...)`
+  - `state_commit(...)`
+  - `state_mark_closed(...)`
+  - `state_doctor(...)` when needed
+
+Use this profile for production reliability.
+
+### Profile T (Tool-only Persistence, compatibility)
+
+- Host only provides file tools (read/write/rename/list).
+- Transaction steps must be followed mechanically:
+  - write temp payloads
+  - validate
+  - write revision
+  - atomically switch `CURRENT`
+  - refresh mirrors
+- Must emit quality/risk caveat in low-confidence host environments.
+
+Use this profile only when scripted execution is unavailable.
+
+## State Root Policy
+
+- Default: `state_root = <skill_dir>/state`
+- Optional override:
+  - `skill.config.json` field: `state_root`
+  - `config/state.json` field: `state_root`
+  - runtime arg `--state-root` (highest priority)
+- Safety rule: resolved path must stay inside allowlisted roots.
+  - default allowlist: `<skill_dir>`
+  - optional extension via `allowed_state_roots` in config
+
+Do not rely on host current working directory as authoritative state path.
+
+## Atomic State Operations
+
+For stable host integration, treat these as atomic operations (or equivalent implementation):
+
+- `state_load(conversation_id|session_id) -> snapshot`
+- `state_commit(turn_id, framework, history, metadata) -> revision_id`
+- `state_mark_closed(session_id, closed_at?)`
+- `state_doctor(session_id|conversation_id, action=validate|repair|migrate)`
+
+Interview loop should call these operations instead of hand-writing multi-file transactions.
+
+## Concurrency And Re-entry
+
+- Same `session_id` must allow only one in-flight commit at a time.
+- Hosts should serialize writes per session with queue or lock.
+- `turn_id` generation should be host-stable and retry-safe.
+- Re-entry after disconnect must reload from `CURRENT` revision before next write.
 
 ## Single-file Execution Playbook
 

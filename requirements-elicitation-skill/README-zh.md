@@ -76,10 +76,13 @@ chmod +x install.sh
 ```text
 .
 ├── SKILL.md                                # Skill frontmatter 与主流程编排
+├── INTEGRATION.md                          # 宿主无关接入手册（分档位与契约）
 ├── README.md                               # 英文文档
 ├── README-zh.md                            # 中文文档
 ├── install.sh                              # 面向多工具的 Unix/macOS 安装脚本
 ├── install.ps1                             # 面向多工具的 PowerShell 安装脚本
+├── config/
+│   └── state.json.example                  # 可选 state_root 覆盖模板
 ├── assets/
 │   ├── interview_framework_schema.json     # 运行时 schema（v2）
 │   └── requirements_report_format.md       # 最终报告模板
@@ -102,7 +105,9 @@ chmod +x install.sh
 │   ├── check_state_drift.py                # 漂移检测 + 迁移 + 回滚
 │   ├── security_scan_state.py              # 状态文件敏感信息扫描
 │   ├── cleanup_sessions.py                 # 两阶段归档/删除生命周期清理
+│   ├── state_doctor.py                     # 统一 validate/repair/migrate 入口
 │   ├── storage_adapter.py                  # 最小存储适配器契约 + 文件后端实现
+│   ├── state_lib/                          # 可复用状态操作库
 │   └── run_state_tests.py                  # 状态层回归测试运行脚本
 ├── examples/
 │   ├── new_framework_example.md
@@ -176,6 +181,7 @@ flowchart TD
   - `active -> closed -> archive -> delete`
 - 存储可移植性：
   - 核心持久化可抽象为 `StorageAdapter` 契约（`load_current`、`commit_revision`、`mark_closed`、`archive_session`）
+  - 原子接入操作：`state_load`、`state_commit`、`state_mark_closed`、`state_doctor`
 
 ## 工具安装目标路径
 
@@ -196,6 +202,7 @@ python scripts/validate_state.py --state-root state --session-id <SESSION_ID>
 python scripts/check_state_drift.py --state-root state --session-id <SESSION_ID> --migrate
 python scripts/security_scan_state.py --state-root state
 python scripts/cleanup_sessions.py --state-root state --archive-days 30 --delete-days 90
+python scripts/state_doctor.py --state-root state --session-id <SESSION_ID> --action validate
 python scripts/run_state_tests.py
 ```
 
@@ -210,6 +217,7 @@ python scripts/run_state_tests.py
 ## 兼容性说明
 - 本仓库的规范 Skill 内容由 `SKILL.md` 提供。
 - Cursor/Windsurf 通过自动生成的适配规则获得支持。
+- 通用宿主接入说明见 `INTEGRATION.md`。
 - 如果团队使用自定义路径，可设置：
   - `CURSOR_RULES_DIR`
   - `WINDSURF_RULES_DIR`

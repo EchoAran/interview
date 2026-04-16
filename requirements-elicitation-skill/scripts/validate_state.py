@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from storage_adapter import FileStorageAdapter
+from state_lib.config import resolve_state_root, skill_dir_from_file
 
 
 SESSION_ID_PATTERN = re.compile(r"^\d{8}_\d{6}_[A-Z0-9]{6}$")
@@ -281,13 +282,14 @@ def cross_validate(
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Validate state files for one session")
-    parser.add_argument("--state-root", default="state", help="State root directory")
+    parser.add_argument("--state-root", default=None, help="State root directory")
     parser.add_argument("--schema", default="assets/interview_framework_schema.json", help="Schema path")
     parser.add_argument("--session-id", default=None, help="Session id; latest if omitted")
     parser.add_argument("--conversation-id", default=None, help="Resolve session via conversation index")
     args = parser.parse_args()
 
-    state_root = Path(args.state_root)
+    skill_dir = skill_dir_from_file(__file__)
+    state_root = resolve_state_root(args.state_root, skill_dir=skill_dir)
     storage_adapter = FileStorageAdapter(state_root)
     schema_path = Path(args.schema)
     session_dir = storage_adapter.resolve_session_dir(args.session_id, args.conversation_id)
