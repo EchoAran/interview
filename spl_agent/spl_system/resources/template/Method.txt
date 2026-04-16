@@ -1,0 +1,35 @@
+[DEFINE_WORKER: "Here is a brief method description" MethodName]
+    [INPUTS]
+        <REF> input_parameter1 </REF>: data_type "Parameter description"
+        <REF> input_parameter2 </REF>: data_type "Parameter description"
+        <!-- More parameters... -->
+    [END_INPUTS]
+
+    [OUTPUTS]
+        <REF> output_result1 </REF>: data_type "Return value description"
+        <REF> output_result2 </REF>: data_type "Return value description"
+        <!-- More return values... -->
+    [END_OUTPUTS]
+
+    [MAIN_FLOW]
+        [SEQUENTIAL_BLOCK]
+            [COMMAND Execute initial data processing RESULT processed_data]
+            [COMMAND Analyze <REF>processed_data</REF> RESULT analysis_results.]
+            [COMMAND Generate final output from <REF>analysis_results</REF> RESULT <REF>output_result</REF>]
+        [END_SEQUENTIAL_BLOCK]
+    [END_MAIN_FLOW]
+    <!-- This section explains each step of the method and how the entire process works from start to finish.The results should maintain an appropriate level of granularity, with one COMMAND corresponding to one process. It should not be too complex or difficult to understand, and there is no limit to the number of final COMMANDs. -->
+
+    [ALTERNATIVE_FLOW: specific_condition]
+        [SEQUENTIAL_BLOCK]
+            [COMMAND Alternative path operation RESULT <REF> output_result2 </REF>]
+        [END_SEQUENTIAL_BLOCK]
+    [END_ALTERNATIVE_FLOW]
+
+    [EXCEPTION_FLOW: exception_condition]
+        [LOG "Exception information"]
+        [THROW ExceptionName "Exception description"]
+    [END_EXCEPTION_FLOW]
+
+[END_WORKER]
+

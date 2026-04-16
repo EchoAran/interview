@@ -3,3 +3,14 @@ __pycache__/
 *.pyc
 .idea/
 .vscode/
+.env
+.venv/
+.env.local
+.env.*.local
+
+# Runtime outputs
+outputs/
+corpus/uploads/
+corpus/indexes/
+orchestrator/state/sessions/
+orchestrator/state/idempotency/

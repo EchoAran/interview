@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "spl-code-understanding"
+version = "0.1.0"
+description = "SPL generation toolkit for Python projects"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+  "openai",
+  "pydantic",
+  "pyyaml",
+]
+
+[project.scripts]
+spl-run = "run_from_config:main"
+
+[tool.setuptools]
+include-package-data = true
+py-modules = ["run_from_config"]
+
+[tool.setuptools.packages.find]
+include = ["spl_system*"]
+
+[tool.setuptools.package-data]
+"spl_system.resources.template" = ["*.txt"]

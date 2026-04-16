@@ -1,0 +1,11 @@
+llm:
+  api_key: ""
+  base_url: "https://api.rcouyi.com/v1"
+  model: "gpt-5"
+  temperature: 0.0
+  timeout_sec: 120
+
+runtime:
+  workspace_dir: ".spl_i"
+  use_llm_for_build: false
+  markdown_name: "SPL_RESULT.md"
